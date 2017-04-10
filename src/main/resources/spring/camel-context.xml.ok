@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:cxf="http://camel.apache.org/schema/cxf"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="                  http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd                                http://camel.apache.org/schema/cxf  http://camel.apache.org/schema/cxf/camel-cxf-spring.xsd                                      http://camel.apache.org/schema/spring  http://camel.apache.org/schema/spring/camel-spring.xsd">
+    <!-- You could also define a traditional camel context here -->
+    <bean class="com.redhat.products.ExtractQueryParams" id="extractBean"/>
+    <cxf:cxfEndpoint
+        address="http://sapem-sapem.10.0.2.15.xip.io/service/SapService"
+        id="sapserviceEndPoint" serviceClass="sample.ws.service.SapWS"/>
+    <camelContext id="camelContext-dac945c5-5f54-4c44-8e8f-44f6798b1697" xmlns="http://camel.apache.org/schema/spring">
+        <restConfiguration bindingMode="json" component="servlet" port="8080"/>
+        <rest path="/v1">
+            <get outType="com.redhat.products.ProductInfo"
+                produces="application/json" uri="/products">
+                <to uri="direct:product"/>
+                <!--                 	<to uri="bean:extractBean?method=mockOutput" /> -->
+            </get>
+        </rest>
+        <route id="_route1">
+            <!--             <bean id="setQueryParams" method="extract" ref="extractBean"/> -->
+            <from id="_from1" uri="direct:product"/>
+            <bean id="setQueryParams" method="setParams" ref="extractBean"/>
+            <to id="_to1" uri="cxf:bean:sapserviceEndPoint?defaultOperationName=getProductInfo"/>
+        </route>
+    </camelContext>
+</beans>

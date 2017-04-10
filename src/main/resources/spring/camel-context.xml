@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:cxf="http://camel.apache.org/schema/cxf"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="                  http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd                                http://camel.apache.org/schema/cxf  http://camel.apache.org/schema/cxf/camel-cxf.xsd                                      http://camel.apache.org/schema/spring  http://camel.apache.org/schema/spring/camel-spring.xsd">
+    <!-- You could also define a traditional camel context here -->
+    <bean class="com.redhat.products.ExtractQueryParams" id="utilBean"/>
+    <bean class="com.redhat.products.ProductInfoAggregator" id="productInfoAggregator"/>
+    <cxf:cxfEndpoint
+        address="http://sapem-sapem.apps.openshift.megatron.world/service/SapService"
+        id="sapServiceEndPoint" serviceClass="sample.ws.service.SapWS"/>
+    <cxf:cxfEndpoint
+        address="http://startrack-startrack.apps.openshift.megatron.world/service/StartrackService"
+        id="stServiceEndPoint" serviceClass="startrack.ws.service.StartrackWS"/>
+    <camelContext id="camelContext-dac945c5-5f54-4c44-8e8f-44f6798b1697" xmlns="http://camel.apache.org/schema/spring">
+        <restConfiguration bindingMode="json" component="servlet" port="8080">
+            <dataFormatProperty key="prettyPrint" value="true"/>
+        </restConfiguration>
+        <rest path="/v1">
+            <get outType="com.redhat.products.ProductInfo"
+                produces="application/json" uri="/products">
+                <description>Get product info based on query parameters</description>
+                <to uri="direct:product"/>
+            </get>
+        </rest>
+        <route id="contentBasedRoute">
+            <from id="fromProducts" uri="direct:product"/>
+            <choice id="mainChoice">
+                <when id="errorCheck">
+                    <method bean="utilBean" method="isQuerryParameterErrorDetected"/>
+                    <bean id="returnError" method="returnError" ref="utilBean"/>
+                </when>
+                <when id="SapAndStartrack">
+                    <method bean="utilBean" method="isSplitterRequired"/>
+                    <split id="ComposedMessageProcessor"
+                        stopOnException="true" strategyRef="productInfoAggregator">
+                        <method bean="utilBean" method="splitRequest"/>
+                        <choice id="_choice1">
+                            <when id="doSap">
+                                <method bean="utilBean" method="isSap"/>
+                                <bean id="setSapQueryParams"
+                                    method="setSapParams" ref="utilBean"/>
+                                <to id="toSap" uri="cxf:bean:sapServiceEndPoint?defaultOperationName=getProductInfo"/>
+                            </when>
+                            <otherwise id="doStartrack">
+                                <bean id="setStQueryParams"
+                                    method="setStParams" ref="utilBean"/>
+                                <to id="toStartrack" uri="cxf:bean:stServiceEndPoint?defaultOperationName=getStProductInfo"/>
+                            </otherwise>
+                        </choice>
+                    </split>
+                </when>
+                <when id="SapOnly">
+                    <method bean="utilBean" method="isSapOnly"/>
+                    <bean id="setRequest1" method="setupRequest" ref="utilBean"/>
+                    <bean id="setSapQueryParams" method="setSapParams" ref="utilBean"/>
+                    <to id="toSap2" uri="cxf:bean:sapServiceEndPoint?defaultOperationName=getProductInfo"/>
+                    <bean id="setProductInfoSap"
+                        method="setTransformedResults" ref="utilBean"/>
+                </when>
+                <otherwise id="Startrack">
+                    <bean id="setRequest2" method="setupRequest" ref="utilBean"/>
+                    <bean id="setStQueryParams" method="setStParams" ref="utilBean"/>
+                    <to id="toStartrack2" uri="cxf:bean:stServiceEndPoint?defaultOperationName=getStProductInfo"/>
+                    <bean id="setProductInfoStartrack"
+                        method="setTransformedResults" ref="utilBean"/>
+                </otherwise>
+            </choice>
+        </route>
+    </camelContext>
+</beans>
