@@ -5,7 +5,7 @@
     <!-- You could also define a traditional camel context here -->
     <bean class="com.redhat.products.ExtractQueryParams" id="extractBean"/>
     <cxf:cxfEndpoint
-        address="http://sapem-sapem.10.0.2.15.xip.io/service/SapService"
+        address="http://sapem-sapem.10.64.30.241.xip.io/service/SapService"
         id="sapserviceEndPoint" serviceClass="sample.ws.service.SapWS"/>
     <camelContext id="camelContext-dac945c5-5f54-4c44-8e8f-44f6798b1697" xmlns="http://camel.apache.org/schema/spring">
         <restConfiguration bindingMode="json" component="servlet" port="8080"/>
